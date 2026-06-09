@@ -1,0 +1,125 @@
+@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=VT323&display=swap");
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root {
+    height: 100%;
+    background: transparent !important;
+    color: #fff;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+  button { cursor: pointer; background: none; border: none; }
+}
+
+/* ── Pixel font ─────────────────────────────────────────────────── */
+@font-face {
+  font-family: "Dited";
+  src: url("./assets/Dited.otf") format("opentype");
+  font-display: swap;
+}
+.font-pixel {
+  font-family: "Dited", "VT323", ui-monospace, monospace;
+  letter-spacing: 0.04em;
+}
+
+/* ── Glitch ─────────────────────────────────────────────────────── */
+.glitch { position: relative; }
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: inherit;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  opacity: 0;
+}
+.glitch::before {
+  animation: glitch-x 7s steps(1) infinite;
+  text-shadow: 1px 0 rgba(255,60,120,.6);
+}
+.glitch::after {
+  animation: glitch-y 7s steps(1) infinite;
+  text-shadow: -1px 0 rgba(60,200,255,.6);
+}
+.glitch-fast::before { animation: glitch-x 5s steps(1) infinite; }
+.glitch-fast::after  { animation: glitch-y 5s steps(1) infinite; }
+
+@keyframes glitch-x {
+  0%,96%,100% { opacity:0; transform:translate(0,0); }
+  96.5%        { opacity:.9; transform:translate(2px,0); }
+  97%          { opacity:0; }
+  97.5%        { opacity:.9; transform:translate(-2px,1px); }
+  98%          { opacity:0; }
+}
+@keyframes glitch-y {
+  0%,95%,100% { opacity:0; transform:translate(0,0); }
+  95.5%        { opacity:.8; transform:translate(-1px,-1px); }
+  96%          { opacity:0; }
+  98.5%        { opacity:.8; transform:translate(1px,2px); }
+  99%          { opacity:0; }
+}
+
+/* ── Scanline flicker ───────────────────────────────────────────── */
+@keyframes glitch-flicker {
+  0%,100%  { opacity:0; }
+  3%       { opacity:.4; }
+  3.5%     { opacity:0; }
+  47%      { opacity:0; }
+  47.4%    { opacity:.3; }
+  47.8%    { opacity:0; }
+  82%      { opacity:.5; }
+  82.3%    { opacity:0; }
+}
+.animate-glitch-flicker { animation: glitch-flicker 9s infinite; }
+
+/* ── Source label pixel-dot animation ──────────────────────────── */
+.pixel-flicker {
+  position: relative;
+  display: inline-block;
+  isolation: isolate;
+  overflow: visible;
+  text-shadow: 0 0 8px rgba(255,255,255,.08);
+}
+.pixel-flicker::before,
+.pixel-flicker::after {
+  content: "";
+  position: absolute;
+  top: -2px; bottom: -2px;
+  left: -4px; right: -4px;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: .55;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,.95) 0 1px, transparent 1.4px),
+    radial-gradient(circle, rgba(255,255,255,.55) 0 1px, transparent 1.4px);
+  background-size: 9px 9px, 13px 13px;
+  background-position: 0 0, 5px 6px;
+  clip-path: inset(0);
+  animation: px-a 1.15s steps(4,end) infinite;
+}
+.pixel-flicker::after {
+  opacity: .35;
+  background-size: 7px 7px, 17px 17px;
+  background-position: 3px 1px, 11px 4px;
+  animation: px-b 1.7s steps(5,end) infinite;
+}
+@keyframes px-a {
+  0%   { opacity:.10; transform:translate(0,0);    }
+  20%  { opacity:.55; transform:translate(1px,0);  }
+  40%  { opacity:.25; transform:translate(-1px,1px);}
+  60%  { opacity:.70; transform:translate(0,-1px); }
+  80%  { opacity:.18; transform:translate(1px,1px);}
+  100% { opacity:.45; transform:translate(0,0);    }
+}
+@keyframes px-b {
+  0%   { opacity:0;   transform:translate(0,0);    }
+  25%  { opacity:.45; transform:translate(-1px,0); }
+  50%  { opacity:.12; transform:translate(1px,-1px);}
+  75%  { opacity:.60; transform:translate(0,1px);  }
+  100% { opacity:.20; transform:translate(0,0);    }
+}

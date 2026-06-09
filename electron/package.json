@@ -1,0 +1,26 @@
+{
+  "name": "outspace",
+  "version": "1.0.0",
+  "description": "Outspace — random music by genre",
+  "main": "main.cjs",
+  "author": "Outspace",
+  "build": {
+    "appId": "com.outspace.player",
+    "productName": "Outspace",
+    "directories": {
+      "output": "../dist-electron",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "tray-icon.png",
+      "../dist/**/*"
+    ],
+    "extraMetadata": { "main": "main.cjs" },
+    "win": { "target": "portable" }
+  },
+  "devDependencies": {
+    "electron": "42.3.0"
+  }
+}
