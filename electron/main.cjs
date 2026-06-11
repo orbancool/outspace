@@ -13,8 +13,11 @@ function dbg(...a) {
 
 const keepAliveAgent = new https.Agent({ keepAlive: true, maxSockets: 4, family: 4 });
 
-// Retry wrapper — archive.org occasionally stalls; one retry clears most errors.
-async function mainFetch(url, retries = 1) {
+// Retry wrapper — archive.org occasionally stalls. Retry the (cheap, critical)
+// search once; skip retry for per-item metadata so a stuck item fails fast and
+// the batch moves on instead of doubling the wait.
+async function mainFetch(url, retries) {
+  if (retries === undefined) retries = /\/metadata\//.test(url) ? 0 : 1;
   try {
     return await mainFetchOnce(url);
   } catch (e) {
@@ -27,7 +30,7 @@ function mainFetchOnce(url) {
   return new Promise((resolve, reject) => {
     const lib = url.startsWith('https') ? https : http;
     const opts = {
-      timeout: 12000,
+      timeout: 8000,
       family: 4, // force IPv4 — avoids IPv6 happy-eyeballs stall on Windows
       agent: url.startsWith('https') ? keepAliveAgent : undefined,
       maxHeaderSize: 1024 * 1024,   // ccMixter sends oversized headers → "Header overflow"
@@ -381,13 +384,26 @@ ipcMain.on('win:toggleAlwaysOnTop', () => {
 
 // ── Window controls ───────────────────────────────────────────────
 
+// Track-list cache: keyed by source+tags. Resolving archive.org metadata is the
+// slow part, so caching makes re-selecting genres (and the background prefetch)
+// effectively instant.
+const trackCache = new Map(); // key -> { at, tracks }
+const CACHE_TTL = 10 * 60 * 1000;
+
 ipcMain.handle('music:fetch', async (_e, source, tags, limit = 10) => {
   dbg('music:fetch CALLED', 'source=', source, 'tags=', tags, 'limit=', limit);
+  const key = `${source}|${(tags || []).join(',')}`;
+  const hit = trackCache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_TTL && hit.tracks.length) {
+    dbg('music:fetch CACHE hit', key, hit.tracks.length);
+    return shuffle(hit.tracks).slice(0, limit);
+  }
   try {
     const r = source === 'mixcloud' ? await fetchMixcloudMain(tags, limit)
             : source === 'ccmixter' ? await fetchCCMixterMain(tags, limit)
             : await fetchArchiveMain(tags, source, limit);
     dbg('music:fetch RESULT count=', Array.isArray(r) ? r.length : 'not-array', Array.isArray(r) && r[0] ? r[0].audio : '');
+    if (Array.isArray(r) && r.length) trackCache.set(key, { at: Date.now(), tracks: r });
     return r;
   } catch (e) { dbg('music:fetch ERROR', e && e.message, e && e.stack); return []; }
 });

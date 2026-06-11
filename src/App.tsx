@@ -713,7 +713,9 @@ export default function App() {
   }, [bumpVol]);
 
   // ── Fetch pool ──
-  const refillPool = useCallback(async (): Promise<Track[]> => {
+  // fast=true → return as soon as the first batch yields any track (start playing
+  // ASAP). fast=false → keep going until TARGET tracks are pooled (background fill).
+  const refillPool = useCallback(async (fast = false): Promise<Track[]> => {
     const ids = Array.from(selected);
     if (!ids.length) return [];
     const TARGET = 6;
@@ -737,12 +739,13 @@ export default function App() {
       }
     };
 
-    for (let i = 0; i < jobs.length; i += 4) {
+    for (let i = 0; i < jobs.length; i += 2) {
       if (out.length >= TARGET) break;
       const results = await Promise.all(
-        jobs.slice(i, i + 2).map((j) => withTimeout(fetchTracks(source, j.tags), 25000, [] as Track[])),
+        jobs.slice(i, i + 2).map((j) => withTimeout(fetchTracks(source, j.tags), 20000, [] as Track[])),
       );
       results.forEach(add);
+      if (fast && out.length) break;   // got something — play it now, fill the rest later
     }
     return shuffle(out);
   }, [selected, source]);
@@ -771,7 +774,7 @@ export default function App() {
     setError(null);
     if (!poolRef.current.length) {
       setLoading(true);
-      const r = await refillPool();
+      const r = await refillPool(true);   // fast: return on first track for instant start
       poolRef.current = r;
       setLoading(false);
       if (!r.length) { setError("Треков не найдено. Попробуй другие жанры."); setPlaying(false); return; }
@@ -994,18 +997,20 @@ export default function App() {
         <span className="tabular-nums w-8 text-right">{Math.round(volume * 100)}%</span>
       </div>
 
-      {/* ── Content block — full height, genres flex so nothing ever clips ── */}
+      {/* ── Content block — centered with fixed gaps; whole block scrolls if
+              the window is too small (never clips, never stretches to edges). ── */}
       <div
-        className="absolute inset-0 flex flex-col items-center px-6"
+        className="absolute inset-0 overflow-y-auto px-6"
+        data-scroll
         style={{
-          paddingTop: "calc(3.25rem + env(safe-area-inset-top))",
-          paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))",
+          paddingTop: "calc(0.5rem + env(safe-area-inset-top))",
+          paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))",
         }}
       >
-        <div className="flex flex-col items-center w-full max-w-md h-full">
+        <div className="min-h-full flex flex-col items-center justify-center w-full max-w-md mx-auto">
 
-          {/* Title — фиксированная высота */}
-          <div className="flex-none flex flex-col items-center" style={{ height: "2.6rem" }}>
+          {/* Title */}
+          <div className="flex flex-col items-center">
             <div
               className="font-pixel text-3xl tracking-widest uppercase glitch glitch-fast"
               data-text="OUTSPACE"
@@ -1014,8 +1019,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Source name — фиксированная высота */}
-          <div className="flex-none flex items-center justify-center" style={{ height: "2.5rem" }}>
+          {/* Source name — fixed gap below title */}
+          <div className="flex items-center justify-center mt-3">
             <button
               onClick={cycleSource}
               onMouseDown={(e) => e.preventDefault()}
@@ -1026,9 +1031,9 @@ export default function App() {
             </button>
           </div>
 
-          {/* Genres — гибкая зона, скролл внутри, центрируется по вертикали */}
-          <div className="flex-1 min-h-0 w-full overflow-y-auto flex items-center mt-2" data-scroll>
-            <div className="flex flex-wrap gap-1.5 justify-center w-full py-1">
+          {/* Genres — fixed gap, natural height (outer scrolls if needed) */}
+          <div className="w-full mt-8">
+            <div className="flex flex-wrap gap-1.5 justify-center w-full">
               {genres.map((g) => {
                 const active = selected.has(g.id);
                 return (
@@ -1054,8 +1059,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Play — фиксированная высота */}
-          <div className="flex-none flex flex-col items-center mt-3" style={{ height: "3.5rem" }}>
+          {/* Play — fixed gap below genres */}
+          <div className="flex flex-col items-center mt-8">
             <button
               onClick={startMix}
               disabled={!hasSelection || loading}
