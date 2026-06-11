@@ -666,11 +666,23 @@ function useRightClickDrag() {
 const MAX_ERRORS = 5;
 
 export default function App() {
-  // ── Persistent state ──
+  // ── Persistent state (read synchronously on first render → no flash) ──
   const [hydrated, setHydrated]   = useState(false);
-  const [source, setSource]       = useState<SourceId>("jamendo");
-  const [volume, setVolume]       = useState(0.8);
-  const [bgOpacity, setBgOpacity] = useState(1);
+  const [source, setSource]       = useState<SourceId>(() => {
+    try {
+      const s = localStorage.getItem("op:source") as SourceId | null;
+      if (s && ACTIVE_SOURCES.some((x) => x.id === s)) return s;
+    } catch { /* ignore */ }
+    return "jamendo";
+  });
+  const [volume, setVolume]       = useState(() => {
+    try { const v = Number(localStorage.getItem("op:vol")); if (isFinite(v) && v >= 0 && v <= 1) return v; } catch { /* */ }
+    return 0.8;
+  });
+  const [bgOpacity, setBgOpacity] = useState(() => {
+    try { const o = Number(localStorage.getItem("op:bg")); if (isFinite(o) && o >= 0.1 && o <= 1) return o; } catch { /* */ }
+    return 1;
+  });
 
   // ── Player state ──
   const [selected, setSelected] = useState<Set<string>>(new Set());

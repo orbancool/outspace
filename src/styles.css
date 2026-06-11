@@ -35,7 +35,9 @@
 @font-face {
   font-family: "Dited";
   src: url("./assets/Dited.otf") format("opentype");
-  font-display: swap;
+  /* block: keep text briefly invisible until Dited loads, instead of flashing
+     a fallback font on first paint (the pixel font looks very different). */
+  font-display: block;
 }
 .font-pixel {
   font-family: "Dited", "VT323", ui-monospace, monospace;
