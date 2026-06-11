@@ -338,13 +338,14 @@ async function fetchArchiveTracks(
   }
 }
 
-async function fetchAudiusTracks(tags: string[], limit = 12): Promise<Track[]> {
+async function fetchAudiusTracks(tags: string[], _limit = 12): Promise<Track[]> {
+  const MAX = 80;
   const out: Track[] = [];
   const seen = new Set<string>();
   for (const t of tags.slice(0, 3)) {
-    if (out.length >= limit) break;
+    if (out.length >= MAX) break;
     try {
-      const params = new URLSearchParams({ query: t, limit: "20", app_name: "Outspace" });
+      const params = new URLSearchParams({ query: t, limit: "100", app_name: "Outspace" });
       const res = await fetch(`https://api.audius.co/v1/tracks/search?${params}`);
       if (!res.ok) continue;
       const json = (await res.json()) as {
@@ -363,7 +364,7 @@ async function fetchAudiusTracks(tags: string[], limit = 12): Promise<Track[]> {
           audio: `https://api.audius.co/v1/tracks/${id}/stream?app_name=Outspace`,
           image: tr.artwork?.["480x480"] || "", duration: Number(tr.duration) || 0, source: "audius",
         });
-        if (out.length >= limit) return shuffle(out);
+        if (out.length >= MAX) break;
       }
     } catch { /* ignore */ }
   }
@@ -884,7 +885,7 @@ export default function App() {
       });
     }
     return () => { cancelled = true; };
-  }, [playing, track?.audio, volume]);
+  }, [playing, track?.id, volume]);
 
   // ── Stall watchdog: archive.org mp3s sometimes never start (huge/slow files).
   //    If playback hasn't begun within 8s, skip to the next (faster) track. ──
@@ -904,7 +905,7 @@ export default function App() {
       }
     }, 8000);
     return () => clearTimeout(id);
-  }, [track?.audio, playing, playNext]);
+  }, [track?.id, playing, playNext]);
 
   // ── Seek (click progress bar) ──
   const onSeek = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -1051,6 +1052,7 @@ export default function App() {
 
         {!isMixcloud && (
           <audio
+            key={track.id}
             ref={audioRef}
             src={track.audio}
             preload="auto"
