@@ -794,11 +794,14 @@ export default function App() {
       ids.forEach((_, i) => { const g = fbLists[i][d]; if (g) jobs.push({ tags: g }); });
     }
 
+    const raw: Track[] = [];          // everything fetched (pre play-history filter)
+    const rawSeen = new Set<string>();
     const add = (tracks: Track[]) => {
       for (const t of tracks) {
-        if (out.length >= TARGET * 2) break;
-        if (seen.has(t.id) || playedRef.current.has(t.id)) continue;
         if (TALK_RE.test(t.name) || TALK_RE.test(t.artist)) continue;
+        if (!rawSeen.has(t.id)) { rawSeen.add(t.id); raw.push(t); }
+        if (out.length >= TARGET * 2) continue;
+        if (seen.has(t.id) || playedRef.current.has(t.id)) continue;
         seen.add(t.id); out.push(t);
       }
     };
@@ -810,6 +813,11 @@ export default function App() {
       );
       results.forEach(add);
       if (fast && out.length) break;   // got something — play it now, fill the rest later
+    }
+    // Catalog exhausted (everything already played) → loop instead of erroring.
+    if (!out.length && raw.length) {
+      playedRef.current = new Set();
+      return shuffle(raw);
     }
     return shuffle(out);
   }, [selected, source]);
