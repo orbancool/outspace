@@ -963,12 +963,16 @@ export default function App() {
         {volHUD}
 
         <div className="relative w-full max-w-md flex flex-col items-center">
-          {/* Track info */}
-          <div className="text-center w-full px-2">
-            <div className="font-pixel text-xl md:text-2xl leading-tight tracking-widest uppercase text-white/85 glitch break-words" data-text={track.name}>
+          {/* Track info — fixed height so only this area changes; the bar,
+              controls and "сменить жанры" below never shift. */}
+          <div className="w-full px-2 flex flex-col items-center justify-center text-center" style={{ height: "7rem" }}>
+            <div
+              className="font-pixel text-xl md:text-2xl leading-tight tracking-widest uppercase text-white/85 glitch break-words line-clamp-2"
+              data-text={track.name}
+            >
               {track.name}
             </div>
-            <div className="mt-4 font-pixel text-xs md:text-sm text-white/55 tracking-widest uppercase glitch" data-text={track.artist}>
+            <div className="mt-3 font-pixel text-xs md:text-sm text-white/55 tracking-widest uppercase glitch" data-text={track.artist}>
               {track.artist}
             </div>
           </div>
