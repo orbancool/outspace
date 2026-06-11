@@ -403,7 +403,11 @@ ipcMain.handle('music:fetch', async (_e, source, tags, limit = 10) => {
             : source === 'ccmixter' ? await fetchCCMixterMain(tags, limit)
             : await fetchArchiveMain(tags, source, limit);
     dbg('music:fetch RESULT count=', Array.isArray(r) ? r.length : 'not-array', Array.isArray(r) && r[0] ? r[0].audio : '');
-    if (Array.isArray(r) && r.length) trackCache.set(key, { at: Date.now(), tracks: r });
+    if (Array.isArray(r) && r.length) {
+      trackCache.set(key, { at: Date.now(), tracks: r });
+      // Cap in-memory cache (text only, ~KB each) so it never grows unbounded.
+      if (trackCache.size > 80) trackCache.delete(trackCache.keys().next().value);
+    }
     return r;
   } catch (e) { dbg('music:fetch ERROR', e && e.message, e && e.stack); return []; }
 });

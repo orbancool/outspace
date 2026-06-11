@@ -781,6 +781,7 @@ export default function App() {
     }
     const next = poolRef.current.shift()!;
     playedRef.current.add(next.id);
+    setProgress(0); setDuration(0);   // reset bar so it doesn't flash the previous track's time
     setTrack(next);
     setPlaying(true);
     void ensurePool();
@@ -812,6 +813,26 @@ export default function App() {
     }
     return () => { cancelled = true; };
   }, [playing, track?.audio, volume]);
+
+  // ── Stall watchdog: archive.org mp3s sometimes never start (huge/slow files).
+  //    If playback hasn't begun within 8s, skip to the next (faster) track. ──
+  useEffect(() => {
+    if (!track || !playing) return;
+    const id = window.setTimeout(() => {
+      const a = audioRef.current;
+      if (!a || !playing) return;
+      if (a.currentTime < 0.5 && a.readyState < 3) {
+        errorsRef.current += 1;
+        if (errorsRef.current >= MAX_ERRORS) {
+          setError("Источник медленно отдаёт треки. Попробуй другие жанры.");
+          setPlaying(false);
+          return;
+        }
+        void playNext();
+      }
+    }, 8000);
+    return () => clearTimeout(id);
+  }, [track?.audio, playing, playNext]);
 
   // ── Seek (click progress bar) ──
   const onSeek = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -1031,8 +1052,9 @@ export default function App() {
             </button>
           </div>
 
-          {/* Genres — fixed gap, natural height (outer scrolls if needed) */}
-          <div className="w-full mt-8">
+          {/* Genres — FIXED-height zone so title/source/play stay put across
+              sources; only this area's contents change (centered, shrinks). */}
+          <div className="w-full mt-8 flex items-center justify-center overflow-hidden" style={{ height: "200px" }}>
             <div className="flex flex-wrap gap-1.5 justify-center w-full">
               {genres.map((g) => {
                 const active = selected.has(g.id);
