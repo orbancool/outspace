@@ -5,10 +5,28 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body, #root {
     height: 100%;
-    background: transparent !important;
     color: #fff;
     -webkit-font-smoothing: antialiased;
     user-select: none;
+  }
+  /* Web (browser/PWA): solid black so rotating or overscrolling never shows
+     white edges. overscroll-behavior kills the rubber-band bounce on iOS. */
+  html, body {
+    background: #000;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    overflow: hidden;
+  }
+  /* Electron frameless window must stay transparent — toggled via the
+     `.electron` class added on <html> when the app detects electronAPI. */
+  html.electron, html.electron body, html.electron #root {
+    background: transparent !important;
+    position: static;
   }
   button { cursor: pointer; background: none; border: none; }
 }

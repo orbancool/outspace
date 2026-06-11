@@ -674,7 +674,12 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
-      if (e.key === "ArrowUp") {
+      if (e.key === " " || e.code === "Space") {
+        // Space toggles play/pause (only meaningful once a track is playing).
+        if (!started || !track) return;
+        e.preventDefault();
+        setPlaying((p) => !p);
+      } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setBgOpacity((o) => Math.min(1, Math.round((o + 0.1) * 10) / 10));
       } else if (e.key === "ArrowDown") {
@@ -694,7 +699,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [bumpVol]);
+  }, [bumpVol, started, track]);
 
   // ── Wheel = volume ──
   useEffect(() => {
@@ -805,7 +810,7 @@ export default function App() {
     return () => { cancelled = true; };
   }, [playing, track?.audio, volume]);
 
-  // ── Seek ──
+  // ── Seek (click progress bar) ──
   const onSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     const a = audioRef.current;
     if (!a || !duration || !isFinite(duration)) return;
@@ -813,6 +818,26 @@ export default function App() {
     a.currentTime = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)) * duration;
     setProgress(a.currentTime);
   };
+
+  // ── Touch swipe seek (web): drag horizontally in empty area to scrub ──
+  const swipe = useRef<{ x: number; t: number } | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    const el = e.target as HTMLElement;
+    if (el.closest("button, [data-seekbar], [data-window-controls], a, input")) return;
+    const a = audioRef.current;
+    if (!a || !duration || !isFinite(duration)) return;
+    swipe.current = { x: e.touches[0].clientX, t: a.currentTime };
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    const a = audioRef.current;
+    if (!swipe.current || !a || !duration) return;
+    const dx = e.touches[0].clientX - swipe.current.x;
+    // Full screen width drag ≈ whole track.
+    const next = Math.min(duration, Math.max(0, swipe.current.t + (dx / window.innerWidth) * duration));
+    a.currentTime = next;
+    setProgress(next);
+  };
+  const onTouchEnd = () => { swipe.current = null; };
 
   // ── Source cycling ──
   const cycleSource = () => {
@@ -849,7 +874,13 @@ export default function App() {
   // ════════ PLAYER VIEW ════════
   if (started && track) {
     return (
-      <div className="relative min-h-screen flex flex-col items-center justify-center text-white px-6 overflow-hidden" style={bg}>
+      <div
+        className="relative flex flex-col items-center justify-center text-white px-6 overflow-hidden"
+        style={{ ...bg, height: "100dvh" }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         <WindowChrome />
         <EdgeResizeZones />
         {scanlines}
@@ -869,7 +900,7 @@ export default function App() {
           {/* Progress bar */}
           {!isMixcloud && (
             <div className="mt-12 w-full">
-              <div onClick={onSeek} className="relative h-6 w-full flex items-center cursor-pointer">
+              <div onClick={onSeek} data-seekbar className="relative h-6 w-full flex items-center cursor-pointer">
                 <div className="h-px w-full bg-white/20" />
                 <div className="absolute h-[3px] w-[3px] bg-white"
                   style={{ left:`${progressPct}%`, top:"50%", transform:"translate(-50%,-50%)", boxShadow:"0 0 6px rgba(255,255,255,.9),0 0 12px rgba(255,255,255,.4)" }} />
@@ -949,7 +980,7 @@ export default function App() {
 
   // ════════ GENRE PICKER ════════
   return (
-    <div className="relative text-white overflow-hidden" style={{ ...bg, height: "100vh" }}>
+    <div className="relative text-white overflow-hidden" style={{ ...bg, height: "100dvh" }}>
       <WindowChrome />
       <EdgeResizeZones />
       {scanlines}
@@ -963,12 +994,18 @@ export default function App() {
         <span className="tabular-nums w-8 text-right">{Math.round(volume * 100)}%</span>
       </div>
 
-      {/* ── Centered content block — все секции фиксированы ── */}
-      <div className="absolute inset-0 flex items-center justify-center px-6">
-        <div className="flex flex-col items-center w-full max-w-md">
+      {/* ── Content block — full height, genres flex so nothing ever clips ── */}
+      <div
+        className="absolute inset-0 flex flex-col items-center px-6"
+        style={{
+          paddingTop: "calc(3.25rem + env(safe-area-inset-top))",
+          paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))",
+        }}
+      >
+        <div className="flex flex-col items-center w-full max-w-md h-full">
 
           {/* Title — фиксированная высота */}
-          <div className="flex flex-col items-center" style={{ height: "2.1rem" }}>
+          <div className="flex-none flex flex-col items-center" style={{ height: "2.6rem" }}>
             <div
               className="font-pixel text-3xl tracking-widest uppercase glitch glitch-fast"
               data-text="OUTSPACE"
@@ -977,8 +1014,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Source name — фиксированная высота, текст обрезается если не влезает */}
-          <div className="flex items-center justify-center" style={{ height: "2.5rem" }}>
+          {/* Source name — фиксированная высота */}
+          <div className="flex-none flex items-center justify-center" style={{ height: "2.5rem" }}>
             <button
               onClick={cycleSource}
               onMouseDown={(e) => e.preventDefault()}
@@ -989,12 +1026,9 @@ export default function App() {
             </button>
           </div>
 
-          {/* Genres — строго фиксированная высота, внутри скролл */}
-          <div
-            className="w-full overflow-y-auto mt-2"
-            style={{ height: "220px" }}
-          >
-            <div className="flex flex-wrap gap-1.5 justify-center py-1">
+          {/* Genres — гибкая зона, скролл внутри, центрируется по вертикали */}
+          <div className="flex-1 min-h-0 w-full overflow-y-auto flex items-center mt-2" data-scroll>
+            <div className="flex flex-wrap gap-1.5 justify-center w-full py-1">
               {genres.map((g) => {
                 const active = selected.has(g.id);
                 return (
@@ -1021,7 +1055,7 @@ export default function App() {
           </div>
 
           {/* Play — фиксированная высота */}
-          <div className="flex flex-col items-center mt-4" style={{ height: "4rem" }}>
+          <div className="flex-none flex flex-col items-center mt-3" style={{ height: "3.5rem" }}>
             <button
               onClick={startMix}
               disabled={!hasSelection || loading}
