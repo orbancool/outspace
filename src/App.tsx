@@ -338,14 +338,12 @@ async function fetchArchiveTracks(
   }
 }
 
-async function fetchAudiusTracks(tags: string[], _limit = 12): Promise<Track[]> {
-  const MAX = 80;
+async function fetchAudiusTracks(tags: string[]): Promise<Track[]> {
   const out: Track[] = [];
   const seen = new Set<string>();
   for (const t of tags.slice(0, 3)) {
-    if (out.length >= MAX) break;
     try {
-      const params = new URLSearchParams({ query: t, limit: "100", app_name: "Outspace" });
+      const params = new URLSearchParams({ query: t, limit: "200", app_name: "Outspace" });
       const res = await fetch(`https://api.audius.co/v1/tracks/search?${params}`);
       if (!res.ok) continue;
       const json = (await res.json()) as {
@@ -364,7 +362,6 @@ async function fetchAudiusTracks(tags: string[], _limit = 12): Promise<Track[]> 
           audio: `https://api.audius.co/v1/tracks/${id}/stream?app_name=Outspace`,
           image: tr.artwork?.["480x480"] || "", duration: Number(tr.duration) || 0, source: "audius",
         });
-        if (out.length >= MAX) break;
       }
     } catch { /* ignore */ }
   }

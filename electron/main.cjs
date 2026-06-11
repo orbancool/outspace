@@ -181,15 +181,14 @@ async function fetchCCMixterMain(tags, limit = 10) {
 }
 
 // Audius — free, no API key, CORS-enabled, fast CDN streaming. Works in web too.
-async function fetchAudiusMain(tags, limit = 10) {
-  // Pull a large pool (Audius returns the same set per query) so the player has
-  // lots of variety before it has to loop. `limit` from the client is ignored here.
-  const MAX = 80;
+async function fetchAudiusMain(tags) {
+  // Audius returns the same ranked list per query in one cheap JSON call, so we
+  // pull the whole catalog (per tag) and shuffle it — `limit` from the client is
+  // ignored; the entire result set rotates before any repeat.
   const out = []; const seen = new Set();
   for (const t of tags.slice(0, 3)) {
-    if (out.length >= MAX) break;
     try {
-      const params = new URLSearchParams({ query: t, limit: '100', app_name: 'Outspace' });
+      const params = new URLSearchParams({ query: t, limit: '200', app_name: 'Outspace' });
       const res = await mainFetch(`https://api.audius.co/v1/tracks/search?${params}`);
       dbg('audius ok=', res.ok, 'tag=', t);
       if (!res.ok) continue;
@@ -206,7 +205,6 @@ async function fetchAudiusMain(tags, limit = 10) {
           audio: `https://api.audius.co/v1/tracks/${id}/stream?app_name=Outspace`,
           image: tr.artwork?.['480x480'] || '', duration: Number(tr.duration) || 0, source: 'audius',
         });
-        if (out.length >= MAX) break;
       }
     } catch (e) { dbg('audius ERROR', e && e.message); }
   }
