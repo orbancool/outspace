@@ -8,7 +8,7 @@ import {
 // Types
 // ─────────────────────────────────────────────
 
-type SourceId = "jamendo" | "archive" | "netlabels" | "ccmixter" | "russian";
+type SourceId = "jamendo" | "archive" | "netlabels" | "ccmixter" | "russian" | "audius";
 
 interface Track {
   id: string;
@@ -49,6 +49,7 @@ const SOURCES: { id: SourceId; label: string }[] = [
   { id: "archive",   label: "INTERNET ARCHIVE" },
   { id: "netlabels", label: "NETLABELS" },
   { id: "ccmixter",  label: "CCMIXTER" },
+  { id: "audius",    label: "AUDIUS" },
   { id: "russian",   label: "РУССКАЯ" },
 ];
 
@@ -128,6 +129,24 @@ const GENRES: Record<SourceId, { id: string; label: string }[]> = {
     { id: "pop",         label: "Pop" },
     { id: "experimental",label: "Experimental" },
     { id: "instrumental",label: "Instrumental" },
+  ],
+  audius: [
+    { id: "electronic",  label: "Electronic" },
+    { id: "house",       label: "House" },
+    { id: "techno",      label: "Techno" },
+    { id: "hip hop",     label: "Hip-Hop" },
+    { id: "trap",        label: "Trap" },
+    { id: "lo-fi",       label: "Lo-Fi" },
+    { id: "dnb",         label: "Drum & Bass" },
+    { id: "dubstep",     label: "Dubstep" },
+    { id: "ambient",     label: "Ambient" },
+    { id: "chill",       label: "Chill" },
+    { id: "pop",         label: "Pop" },
+    { id: "rock",        label: "Rock" },
+    { id: "jazz",        label: "Jazz" },
+    { id: "rap",         label: "Rap" },
+    { id: "remix",       label: "Remix" },
+    { id: "russian rap", label: "Русский рэп" },
   ],
   russian: [
     { id: "rock",        label: "Рок" },
@@ -319,6 +338,38 @@ async function fetchArchiveTracks(
   }
 }
 
+async function fetchAudiusTracks(tags: string[], limit = 12): Promise<Track[]> {
+  const out: Track[] = [];
+  const seen = new Set<string>();
+  for (const t of tags.slice(0, 3)) {
+    if (out.length >= limit) break;
+    try {
+      const params = new URLSearchParams({ query: t, limit: "20", app_name: "Outspace" });
+      const res = await fetch(`https://api.audius.co/v1/tracks/search?${params}`);
+      if (!res.ok) continue;
+      const json = (await res.json()) as {
+        data?: Array<{ id?: string; title?: string; duration?: number;
+          user?: { name?: string; handle?: string }; artwork?: Record<string, string> }>;
+      };
+      for (const tr of json.data ?? []) {
+        const id = tr.id;
+        if (!id || seen.has(id)) continue;
+        const name = tr.title || "Audius";
+        const artist = tr.user?.name || tr.user?.handle || "Audius";
+        if (TALK_RE.test(name) || TALK_RE.test(artist)) continue;
+        seen.add(id);
+        out.push({
+          id: `au:${id}`, name, artist,
+          audio: `https://api.audius.co/v1/tracks/${id}/stream?app_name=Outspace`,
+          image: tr.artwork?.["480x480"] || "", duration: Number(tr.duration) || 0, source: "audius",
+        });
+        if (out.length >= limit) return shuffle(out);
+      }
+    } catch { /* ignore */ }
+  }
+  return shuffle(out);
+}
+
 async function fetchMixcloudTracks(tags: string[], limit = 12): Promise<Track[]> {
   const out: Track[] = [];
   const seen = new Set<string>();
@@ -408,6 +459,7 @@ async function fetchTracks(source: SourceId, tags: string[]): Promise<Track[]> {
   }
   // Browser fallback (works in dev / web)
   if (source === "mixcloud")  return fetchMixcloudTracks(tags);
+  if (source === "audius")    return fetchAudiusTracks(tags);
   if (source === "ccmixter")  return [];  // ccMixter is main-process only (expired TLS / CORS)
   if (source === "jamendo")   return fetchJamendoTracks(tags);
   if (source === "netlabels") return fetchArchiveTracks(tags, "netlabels");

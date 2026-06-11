@@ -180,6 +180,37 @@ async function fetchCCMixterMain(tags, limit = 10) {
   return shuffle(out);
 }
 
+// Audius — free, no API key, CORS-enabled, fast CDN streaming. Works in web too.
+async function fetchAudiusMain(tags, limit = 10) {
+  const out = []; const seen = new Set();
+  for (const t of tags.slice(0, 3)) {
+    if (out.length >= limit) break;
+    try {
+      const params = new URLSearchParams({ query: t, limit: '20', app_name: 'Outspace' });
+      const res = await mainFetch(`https://api.audius.co/v1/tracks/search?${params}`);
+      dbg('audius ok=', res.ok, 'tag=', t);
+      if (!res.ok) continue;
+      const json = await res.json();
+      for (const tr of (json.data || [])) {
+        const id = tr.id;
+        if (!id || seen.has(id)) continue;
+        const name = tr.title || 'Audius';
+        const artist = tr.user?.name || tr.user?.handle || 'Audius';
+        if (TALK_RE.test(name) || TALK_RE.test(artist)) continue;
+        seen.add(id);
+        out.push({
+          id: `au:${id}`, name, artist,
+          audio: `https://api.audius.co/v1/tracks/${id}/stream?app_name=Outspace`,
+          image: tr.artwork?.['480x480'] || '', duration: Number(tr.duration) || 0, source: 'audius',
+        });
+        if (out.length >= limit) return shuffle(out);
+      }
+    } catch (e) { dbg('audius ERROR', e && e.message); }
+  }
+  dbg('audius tracks out=', out.length);
+  return shuffle(out);
+}
+
 const isDev      = !app.isPackaged;
 const LOCAL_HTML = path.join(__dirname, '..', 'dist', 'index.html');
 const TRAY_ICON  = path.join(__dirname, 'tray-icon.png');
@@ -401,6 +432,7 @@ ipcMain.handle('music:fetch', async (_e, source, tags, limit = 10) => {
   try {
     const r = source === 'mixcloud' ? await fetchMixcloudMain(tags, limit)
             : source === 'ccmixter' ? await fetchCCMixterMain(tags, limit)
+            : source === 'audius'   ? await fetchAudiusMain(tags, limit)
             : await fetchArchiveMain(tags, source, limit);
     dbg('music:fetch RESULT count=', Array.isArray(r) ? r.length : 'not-array', Array.isArray(r) && r[0] ? r[0].audio : '');
     if (Array.isArray(r) && r.length) {
