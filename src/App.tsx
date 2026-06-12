@@ -970,7 +970,7 @@ export default function App() {
     return (
       <div
         className="relative flex flex-col items-center justify-center text-white px-6 overflow-hidden"
-        style={{ ...bg, height: "100dvh" }}
+        style={{ ...bg, height: "100dvh", borderRadius: IS_ELECTRON ? "26px" : 0 }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -1053,6 +1053,7 @@ export default function App() {
             ref={audioRef}
             src={track.audio}
             preload="auto"
+            autoPlay
             onTimeUpdate={(e) => setProgress((e.target as HTMLAudioElement).currentTime)}
             onLoadedMetadata={(e) => {
               const el = e.target as HTMLAudioElement;
@@ -1060,6 +1061,11 @@ export default function App() {
               setDuration(el.duration);
               errorsRef.current = 0;
               setError(null);
+            }}
+            onCanPlay={(e) => {
+              // Loaded & seekable but silent (play() was rejected/raced) — resync.
+              const el = e.target as HTMLAudioElement;
+              if (playing && el.paused) el.play().catch(() => {});
             }}
             onEnded={playNext}
             onError={() => {
@@ -1079,7 +1085,7 @@ export default function App() {
 
   // ════════ GENRE PICKER ════════
   return (
-    <div className="relative text-white overflow-hidden" style={{ ...bg, height: "100dvh" }}>
+    <div className="relative text-white overflow-hidden" style={{ ...bg, height: "100dvh", borderRadius: IS_ELECTRON ? "26px" : 0 }}>
       <WindowChrome />
       <EdgeResizeZones />
       {scanlines}
