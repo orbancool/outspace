@@ -970,7 +970,7 @@ export default function App() {
     return (
       <div
         className="relative flex flex-col items-center justify-center text-white px-6 overflow-hidden"
-        style={{ ...bg, height: "100dvh", borderRadius: IS_ELECTRON ? "26px" : 0 }}
+        style={{ ...bg, height: "100dvh", borderRadius: IS_ELECTRON ? "16px" : 0 }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -1085,7 +1085,7 @@ export default function App() {
 
   // ════════ GENRE PICKER ════════
   return (
-    <div className="relative text-white overflow-hidden" style={{ ...bg, height: "100dvh", borderRadius: IS_ELECTRON ? "26px" : 0 }}>
+    <div className="relative text-white overflow-hidden" style={{ ...bg, height: "100dvh", borderRadius: IS_ELECTRON ? "16px" : 0 }}>
       <WindowChrome />
       <EdgeResizeZones />
       {scanlines}
